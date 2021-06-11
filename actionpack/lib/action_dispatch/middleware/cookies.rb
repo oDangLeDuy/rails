@@ -634,15 +634,23 @@ module ActionDispatch
 
       private
         def parse(name, signed_message, purpose: nil)
-          deserialize(name) do |rotate|
-            @verifier.verified(signed_message, on_rotation: rotate, purpose: purpose)
-          end
+          parse_legacy_signed_message(name, signed_message)
         end
 
         def commit(name, options)
           options[:value] = @verifier.generate(serialize(options[:value]), **cookie_metadata(name, options))
 
           raise CookieOverflow if options[:value].bytesize > MAX_COOKIE_SIZE
+        end
+
+        def parse_legacy_signed_message(name, legacy_signed_message)
+          legacy_verifier = ActiveSupport::MessageVerifier.new(request.secret_token, digest: digest, serializer: SERIALIZER)
+
+          deserialize(name) do |rotate|
+            rotate.call
+
+            legacy_verifier.verified(legacy_signed_message)
+          end
         end
     end
 
